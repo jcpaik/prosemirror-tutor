@@ -1,8 +1,10 @@
 # 2026-02-28: Project Setup and First Lessons
 
-## Part 0: 
+## Part 0: What it is about
 
-- I am trying to use Claude Code (CC) as a tutor to learn a package `prosemirror` which I find very challenging to learn.
+This is a record of the conversation I had with Claude Code (CC).
+
+- I am trying to use CC as a tutor to learn a package `prosemirror` which I find very challenging to learn.
 - I also am trying to use CC itself to harness itself as a tutor. 
 
 So I started an empty project with CLAUDE.md as below.
@@ -19,6 +21,8 @@ So I started an empty project with CLAUDE.md as below.
 At this point I only some vague ideas on what npm is. Below, I try to do a test learning session, and using that to harness CC itself as a teacher too.
 
 I hope this is a good reference for myself and maybe others on how to use CC in other practices than programming.
+
+This part is written by me. The other parts are the conversations I had with CC recorded by CC.
 
 ## Part 1: Repo setup
 

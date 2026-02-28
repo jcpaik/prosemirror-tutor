@@ -1,0 +1,36 @@
+{
+  "name": "prosemirror-tutor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jcpaik/prosemirror-tutor.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jcpaik/prosemirror-tutor/issues"
+  },
+  "homepage": "https://github.com/jcpaik/prosemirror-tutor#readme",
+  "dependencies": {
+    "prosemirror-commands": "^1.7.1",
+    "prosemirror-example-setup": "^1.2.3",
+    "prosemirror-history": "^1.5.0",
+    "prosemirror-keymap": "^1.2.3",
+    "prosemirror-model": "^1.25.4",
+    "prosemirror-schema-basic": "^1.2.4",
+    "prosemirror-schema-list": "^1.5.1",
+    "prosemirror-state": "^1.4.4",
+    "prosemirror-view": "^1.41.6"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}

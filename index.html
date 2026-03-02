@@ -4,19 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ProseMirror Tutorial</title>
-  <style>
-    body { max-width: 800px; margin: 40px auto; padding: 0 20px; font-family: sans-serif; }
-    h1 { color: #333; }
-    /* ProseMirror editor styling */
-    .ProseMirror { border: 1px solid #ccc; padding: 12px; min-height: 200px; outline: none; }
-    .ProseMirror:focus { border-color: #66afe9; }
-  </style>
 </head>
 <body>
-  <h1>ProseMirror Tutorial</h1>
-  <div id="editor"></div>
+  <div id="toolbar">
+    <h1>ProseMirror Tutorial</h1>
+    <select id="example-select"></select>
+    <button id="run-btn">Update</button>
+  </div>
+  <div id="panels">
+    <div id="code-panel">
+      <div id="code-editor"></div>
+    </div>
+    <div id="result-panel">
+      <div id="editor-container"></div>
+      <div id="error-output"></div>
+    </div>
+  </div>
 
-  <!-- Change this import to load a different example -->
-  <script type="module" src="./examples/01-basic-editor.js"></script>
+  <script type="module" src="./src/tutor.js"></script>
 </body>
 </html>

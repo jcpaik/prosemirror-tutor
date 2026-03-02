@@ -1,0 +1,14 @@
+[
+  {
+    "file": "01-basic-editor.js",
+    "title": "01 - Basic Editor"
+  },
+  {
+    "file": "02-from-scratch.js",
+    "title": "02 - From Scratch"
+  },
+  {
+    "file": "03-transactions.js",
+    "title": "03 - Transactions"
+  }
+]

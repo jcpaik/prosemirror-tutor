@@ -23,8 +23,12 @@
 ## Project Structure
 
 ```
-index.html          ← entry page, mounts the editor
+index.html          ← split-screen tutorial page (code editor + live preview)
+src/
+  tutor.js          ← module registry, import transform, code execution, UI wiring
+  tutor.css         ← split-panel layout and styling
 examples/           ← one JS file per tutorial lesson
+  manifest.json     ← JSON list of examples for the dropdown
   01-basic-editor.js
 .gitignore
 package.json
@@ -42,5 +46,5 @@ npm run dev     # start Vite dev server → http://localhost:5173
 ## Adding a New Example
 
 1. Create `examples/02-your-topic.js`
-2. In `index.html`, change the `<script>` src to point to the new file
-3. The dev server hot-reloads automatically
+2. Add an entry to `examples/manifest.json` with `file` and `title`
+3. The dev server hot-reloads automatically; select the new example from the dropdown

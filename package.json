@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
+    "fetch-docs": "bash scripts/fetch-docs.sh",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

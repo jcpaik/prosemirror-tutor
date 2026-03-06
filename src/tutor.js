@@ -122,6 +122,43 @@ const runBtn = document.querySelector("#run-btn");
 const codeEditorEl = document.querySelector("#code-editor");
 const editorContainer = document.querySelector("#editor-container");
 const errorOutput = document.querySelector("#error-output");
+const divider = document.querySelector("#divider");
+const codePanel = document.querySelector("#code-panel");
+const resultPanel = document.querySelector("#result-panel");
+
+// ---------- Draggable divider ----------
+{
+  let startX, startCodeWidth, startResultWidth;
+  const panels = document.querySelector("#panels");
+
+  divider.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startCodeWidth = codePanel.getBoundingClientRect().width;
+    startResultWidth = resultPanel.getBoundingClientRect().width;
+    divider.classList.add("active");
+    document.body.classList.add("dragging");
+
+    function onMouseMove(e) {
+      const dx = e.clientX - startX;
+      const totalWidth = startCodeWidth + startResultWidth;
+      const newCode = Math.max(100, Math.min(totalWidth - 100, startCodeWidth + dx));
+      const newResult = totalWidth - newCode;
+      codePanel.style.flexBasis = (newCode / panels.getBoundingClientRect().width * 100) + "%";
+      resultPanel.style.flexBasis = (newResult / panels.getBoundingClientRect().width * 100) + "%";
+    }
+
+    function onMouseUp() {
+      divider.classList.remove("active");
+      document.body.classList.remove("dragging");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  });
+}
 
 // ---------- CodeMirror setup ----------
 let cmView = new CMEditorView({
@@ -134,29 +171,48 @@ let cmView = new CMEditorView({
 
 // ---------- Load manifest & populate dropdown ----------
 async function loadManifest() {
-  const resp = await fetch("/examples/manifest.json");
-  const manifest = await resp.json();
-  for (const entry of manifest) {
+  const [examplesResp, exercisesResp] = await Promise.all([
+    fetch("/examples/manifest.json"),
+    fetch("/exercises/manifest.json"),
+  ]);
+  const examples = await examplesResp.json();
+  const exercises = await exercisesResp.json();
+
+  const exGroup = document.createElement("optgroup");
+  exGroup.label = "Examples";
+  for (const entry of examples) {
     const opt = document.createElement("option");
-    opt.value = entry.file;
+    opt.value = `examples/${entry.file}`;
     opt.textContent = entry.title;
-    select.appendChild(opt);
+    exGroup.appendChild(opt);
   }
+  select.appendChild(exGroup);
+
+  const exerGroup = document.createElement("optgroup");
+  exerGroup.label = "Exercises";
+  for (const entry of exercises) {
+    const opt = document.createElement("option");
+    opt.value = `exercises/${entry.file}`;
+    opt.textContent = entry.title;
+    exerGroup.appendChild(opt);
+  }
+  select.appendChild(exerGroup);
+
   // Auto-load the first example
-  if (manifest.length > 0) {
-    await loadExample(manifest[0].file);
+  if (examples.length > 0) {
+    await loadFile(`examples/${examples[0].file}`);
   }
 }
 
 // Fetch raw source via Vite's ?raw query to bypass JS transforms
-async function loadExample(filename) {
-  const mod = await import(/* @vite-ignore */ `/examples/${filename}?raw`);
+async function loadFile(path) {
+  const mod = await import(/* @vite-ignore */ `/${path}?raw`);
   cmView.dispatch({
     changes: { from: 0, to: cmView.state.doc.length, insert: mod.default },
   });
 }
 
-select.addEventListener("change", () => loadExample(select.value));
+select.addEventListener("change", () => loadFile(select.value));
 
 // ---------- Execute user code ----------
 function runCode() {

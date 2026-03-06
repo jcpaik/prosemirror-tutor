@@ -10,5 +10,9 @@
   {
     "file": "03-transactions.js",
     "title": "03 - Transactions"
+  },
+  {
+    "file": "04-document-model.js",
+    "title": "04 - Document Model & Positions"
   }
 ]

@@ -56,15 +56,34 @@ body {
 }
 
 #code-panel {
-  width: 50%;
+  flex: 1 1 50%;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #ddd;
+  min-width: 100px;
 }
 
 #code-editor {
   flex: 1;
   overflow: auto;
+}
+
+/* Draggable divider */
+#divider {
+  width: 6px;
+  cursor: col-resize;
+  background: #e0e0e0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+#divider:hover,
+#divider.active {
+  background: #4a90d9;
+}
+
+body.dragging {
+  user-select: none;
+  cursor: col-resize;
 }
 
 /* Make CodeMirror fill the panel */
@@ -77,10 +96,11 @@ body {
 }
 
 #result-panel {
-  width: 50%;
+  flex: 1 1 50%;
   display: flex;
   flex-direction: column;
   overflow: auto;
+  min-width: 100px;
 }
 
 #editor-container {

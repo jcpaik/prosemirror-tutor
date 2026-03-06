@@ -1,0 +1,14 @@
+[
+  {
+    "file": "01-schema.js",
+    "title": "01 - Build a Custom Schema"
+  },
+  {
+    "file": "02-transactions.js",
+    "title": "02 - Dispatch Transactions"
+  },
+  {
+    "file": "03-doc-model.js",
+    "title": "03 - Explore the Document"
+  }
+]

@@ -1,4 +1,5 @@
 import "./tutor.css";
+import { marked } from "marked";
 
 // ProseMirror CSS (menu bar, example-setup)
 import "prosemirror-menu/style/menu.css";
@@ -21,6 +22,12 @@ import * as pmKeymap from "prosemirror-keymap";
 import * as pmCommands from "prosemirror-commands";
 import * as pmHistory from "prosemirror-history";
 import * as pmExampleSetup from "prosemirror-example-setup";
+import * as pmInputRules from "prosemirror-inputrules";
+import * as pmMenu from "prosemirror-menu";
+import * as pmTransform from "prosemirror-transform";
+import * as pmGapCursor from "prosemirror-gapcursor";
+import * as pmDropCursor from "prosemirror-dropcursor";
+import * as pmCollab from "prosemirror-collab";
 
 const MODULE_REGISTRY = {
   "prosemirror-state": pmState,
@@ -32,6 +39,12 @@ const MODULE_REGISTRY = {
   "prosemirror-commands": pmCommands,
   "prosemirror-history": pmHistory,
   "prosemirror-example-setup": pmExampleSetup,
+  "prosemirror-inputrules": pmInputRules,
+  "prosemirror-menu": pmMenu,
+  "prosemirror-transform": pmTransform,
+  "prosemirror-gapcursor": pmGapCursor,
+  "prosemirror-dropcursor": pmDropCursor,
+  "prosemirror-collab": pmCollab,
 };
 
 // ---------- Import rewriting ----------
@@ -119,12 +132,19 @@ function cleanupViews() {
 // ---------- DOM references ----------
 const select = document.querySelector("#example-select");
 const runBtn = document.querySelector("#run-btn");
+const lessonBtn = document.querySelector("#lesson-btn");
 const codeEditorEl = document.querySelector("#code-editor");
 const editorContainer = document.querySelector("#editor-container");
 const errorOutput = document.querySelector("#error-output");
+const lessonPanel = document.querySelector("#lesson-panel");
 const divider = document.querySelector("#divider");
 const codePanel = document.querySelector("#code-panel");
 const resultPanel = document.querySelector("#result-panel");
+
+let lessonMap = {};
+let exampleMap = {};
+let selectedRunnablePath = null;
+let showingLesson = true;
 
 // ---------- Draggable divider ----------
 {
@@ -171,56 +191,127 @@ let cmView = new CMEditorView({
 
 // ---------- Load manifest & populate dropdown ----------
 async function loadManifest() {
-  const [examplesResp, exercisesResp] = await Promise.all([
+  const [lessonsResp, examplesResp, exercisesResp] = await Promise.all([
+    fetch("/lessons/manifest.json"),
     fetch("/examples/manifest.json"),
     fetch("/exercises/manifest.json"),
   ]);
+  const lessons = await lessonsResp.json();
   const examples = await examplesResp.json();
   const exercises = await exercisesResp.json();
 
-  const exGroup = document.createElement("optgroup");
-  exGroup.label = "Examples";
-  for (const entry of examples) {
-    const opt = document.createElement("option");
-    opt.value = `examples/${entry.file}`;
-    opt.textContent = entry.title;
-    exGroup.appendChild(opt);
+  lessonMap = {};
+  exampleMap = {};
+
+  for (const entry of lessons) {
+    lessonMap[entry.num] = entry.file;
   }
-  select.appendChild(exGroup);
+
+  for (const entry of examples) {
+    const match = entry.file.match(/^(\d{2})-/);
+    if (match) exampleMap[match[1]] = entry.file;
+  }
+
+  const lessonGroup = document.createElement("optgroup");
+  lessonGroup.label = "Lessons";
+  for (const entry of lessons) {
+    const opt = document.createElement("option");
+    opt.value = `lesson:${entry.num}`;
+    opt.textContent = `${entry.num} - ${entry.title}`;
+    lessonGroup.appendChild(opt);
+  }
+  select.appendChild(lessonGroup);
 
   const exerGroup = document.createElement("optgroup");
   exerGroup.label = "Exercises";
   for (const entry of exercises) {
     const opt = document.createElement("option");
-    opt.value = `exercises/${entry.file}`;
+    opt.value = `exercise:${entry.file}`;
     opt.textContent = entry.title;
     exerGroup.appendChild(opt);
   }
   select.appendChild(exerGroup);
 
-  // Auto-load the first example
-  if (examples.length > 0) {
-    await loadFile(`examples/${examples[0].file}`);
+  if (lessons.length > 0) {
+    select.value = `lesson:${lessons[0].num}`;
+    await loadSelection();
   }
 }
 
 // Fetch raw source via Vite's ?raw query to bypass JS transforms
 async function loadFile(path) {
   const mod = await import(/* @vite-ignore */ `/${path}?raw`);
+  setCode(mod.default);
+}
+
+function setCode(text) {
   cmView.dispatch({
-    changes: { from: 0, to: cmView.state.doc.length, insert: mod.default },
+    changes: { from: 0, to: cmView.state.doc.length, insert: text },
   });
 }
 
-select.addEventListener("change", () => loadFile(select.value));
+select.addEventListener("change", loadSelection);
+
+async function loadSelection() {
+  clearExampleOutput();
+
+  if (select.value.startsWith("exercise:")) {
+    const file = select.value.slice("exercise:".length);
+    selectedRunnablePath = `exercises/${file}`;
+    setCodeAvailable(true);
+    lessonBtn.disabled = true;
+    lessonBtn.textContent = "Lesson";
+    await loadFile(selectedRunnablePath);
+    setLessonMode(false);
+    return;
+  }
+
+  const num = getSelectedNum();
+  const exampleFile = num ? exampleMap[num] : null;
+  selectedRunnablePath = exampleFile ? `examples/${exampleFile}` : null;
+
+  setCodeAvailable(Boolean(selectedRunnablePath));
+  await showLesson(num);
+
+  if (selectedRunnablePath) {
+    await loadFile(selectedRunnablePath);
+  } else {
+    setCode("");
+  }
+
+  setLessonMode(true);
+}
+
+function setCodeAvailable(hasCode) {
+  codePanel.style.display = hasCode ? "" : "none";
+  divider.style.display = hasCode ? "" : "none";
+  runBtn.disabled = !hasCode;
+  lessonBtn.disabled = !hasCode;
+}
 
 // ---------- Execute user code ----------
-function runCode() {
-  // Clear previous state
+function clearExampleOutput() {
   cleanupViews();
   editorContainer.innerHTML = "";
   errorOutput.textContent = "";
   errorOutput.classList.remove("visible");
+
+  // Remove any extra nodes appended to the result panel by previous examples
+  // (log panels, status bars, debug panels, injected <style> elements, etc.)
+  const rp = editorContainer.parentNode;
+  for (let i = rp.childNodes.length - 1; i >= 0; i--) {
+    const child = rp.childNodes[i];
+    if (child !== editorContainer && child !== errorOutput && child !== lessonPanel) {
+      rp.removeChild(child);
+    }
+  }
+}
+
+function runCode() {
+  if (!selectedRunnablePath) return;
+
+  clearExampleOutput();
+  setLessonMode(false);
 
   const code = cmView.state.doc.toString();
   const transformed = transformImports(code);
@@ -237,6 +328,64 @@ function runCode() {
 }
 
 runBtn.addEventListener("click", runCode);
+
+// ---------- Lesson panel toggle ----------
+function getSelectedNum() {
+  const val = select.value;
+  if (val.startsWith("lesson:")) return val.slice("lesson:".length);
+
+  const match = val.match(/(\d{2})-/);
+  return match ? match[1] : null;
+}
+
+async function showLesson(num = getSelectedNum()) {
+  if (!num || !lessonMap[num]) {
+    lessonPanel.innerHTML = "<p><em>No lesson found.</em></p>";
+    return;
+  }
+  const resp = await fetch(`/lessons/${lessonMap[num]}`);
+  const md = await resp.text();
+  lessonPanel.innerHTML = marked(md);
+}
+
+function hideExtraResultNodes() {
+  for (const child of resultPanel.children) {
+    if (child !== editorContainer && child !== errorOutput && child !== lessonPanel) {
+      child.style.display = "none";
+    }
+  }
+}
+
+function showExtraResultNodes() {
+  for (const child of resultPanel.children) {
+    if (child !== editorContainer && child !== errorOutput && child !== lessonPanel) {
+      child.style.display = "";
+    }
+  }
+}
+
+function setLessonMode(showLessonView) {
+  showingLesson = showLessonView;
+
+  if (showingLesson) {
+    editorContainer.style.display = "none";
+    errorOutput.classList.remove("visible");
+    hideExtraResultNodes();
+    lessonPanel.classList.remove("hidden");
+    lessonBtn.classList.add("active");
+    lessonBtn.textContent = selectedRunnablePath ? "Example" : "No Example";
+  } else {
+    editorContainer.style.display = "";
+    showExtraResultNodes();
+    lessonPanel.classList.add("hidden");
+    lessonBtn.classList.remove("active");
+    lessonBtn.textContent = "Lesson";
+  }
+}
+
+lessonBtn.addEventListener("click", () => {
+  if (selectedRunnablePath) setLessonMode(!showingLesson);
+});
 
 // ---------- Init ----------
 loadManifest();

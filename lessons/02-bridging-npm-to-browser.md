@@ -1,48 +1,75 @@
-# Lesson 02: Bridging npm Packages to the Browser
+# 02 - Bridging npm Packages to the Browser
 
-## The fundamental gap
+## The immediate need
 
-npm packages are pure JS code meant to be consumed by other JS code — not webpages. There is always a gap between "npm packages on disk" and "working webpage in a browser." Something has to bridge it.
+The editor loop must run in a browser page. But the code we installed with npm
+lives in `node_modules/`, and browser imports need URLs. Vite is the bridge
+between those two worlds.
 
-## How a browser loads a webpage
+## What the browser can load
 
-1. You type `http://localhost:5173` in the browser.
-2. Browser sends a request to that address: "give me the page."
-3. A **web server** listening at that address sends back `index.html`.
-4. Browser reads the HTML, sees `<script src="./examples/01-basic-editor.js">`, makes another request: "give me that file too."
-5. Server sends back that JS file.
-6. Browser reads the JS, sees `import ... from "prosemirror-state"`, and needs that too.
+When you open `http://localhost:5173`, the browser asks a web server for files:
 
-**Step 6 is where the problem hits.** `"prosemirror-state"` is just a name — not a URL, not a file path. The browser only knows how to fetch things by URL (like `./something.js`). It doesn't know that the code lives somewhere deep in `node_modules/prosemirror-state/`.
+1. `index.html`
+2. An example script such as `./examples/03-transactions.js`
+3. Any modules imported by that script
 
-## A simple web server can't solve this
+Relative imports are already URLs:
 
-Python has a built-in web server: `python3 -m http.server`. It serves files from your directory — browser asks for `index.html`, it sends it. But when the browser hits `import ... from "prosemirror-state"`, the simple server can't help. Nobody told the browser where that package actually is.
+```js
+import "./src/tutor.css";
+```
 
-## Why not just use relative imports?
+Bare package imports are not URLs:
 
-You could rewrite your own imports to relative paths like `./node_modules/prosemirror-state/src/index.js`. But the code _inside_ those packages also uses bare imports like `import { ... } from "prosemirror-model"`. You'd have to edit third-party code inside `node_modules/` — code that gets wiped and re-downloaded on every `npm install`.
+```js
+import { EditorState } from "prosemirror-state";
+```
 
-Relative imports work for **your own** code. The problem is that **packages themselves** use bare import names internally, and you can't change that.
+The browser does not know where `"prosemirror-state"` lives. npm knows the
+package. The browser knows URLs. Something must translate.
 
-## Vite = a web server that understands npm package names
+## Why a plain file server is not enough
 
-When Vite sees the browser request a file containing `import ... from "prosemirror-state"`, it rewrites that to the actual path inside `node_modules/` before sending it back. The browser never even knows — it just gets working code.
+A simple server can send `index.html` and local files. It cannot automatically
+turn `"prosemirror-state"` into the right file path inside `node_modules/`.
 
-So Vite is a **smart web server** that bridges the gap between npm packages on disk and the browser that needs URLs. That's the core of it.
+You could try importing from `./node_modules/...`, but ProseMirror packages
+also import other packages by bare names. Editing third-party package files is
+fragile and would be lost on reinstall.
 
-## Vite is a build tool, not a framework
+## Vite's role
 
-That bridge doesn't have to be Vite. It could be webpack, parcel, esbuild, or others. They all solve the same core problem. Vite is just the lightest-weight option right now.
+Vite is a development web server that understands npm package names. When the
+browser asks for an example module, Vite rewrites bare imports to browser-loadable
+module URLs before serving the code.
 
-The key distinction:
+That means our example can stay clean:
 
-- **Framework dependency** (React, Vue, etc.) — your code is written _for_ it, painful to leave.
-- **Build tool** (Vite, webpack, etc.) — your code doesn't know it exists, swappable anytime.
+```js
+import { EditorState } from "prosemirror-state";
+import { EditorView } from "prosemirror-view";
+```
 
-Vite is the second kind. Look at `01-basic-editor.js` — there's nothing Vite-specific in it. It's standard JS with standard imports. If you swapped Vite for webpack, you'd change zero lines of application code. Only the dev tooling config changes.
+The browser receives working modules. The editor can create state, create a
+view, handle input, and render.
 
-## Without Vite, alternatives are:
+## Build tool, not editor framework
 
-- **Copy-paste** source files into your project and use relative imports (fragile, manual)
-- **CDN URLs** — instead of bare names, import directly from a URL like `https://esm.sh/prosemirror-state`. The browser can fetch URLs. This skips npm entirely but loses version control and offline dev.
+Vite is not part of ProseMirror's editing model. It does not own the document,
+the state, or the DOM rendering loop. It just serves JavaScript in a form the
+browser can execute.
+
+Other tools can fill the same role: webpack, Parcel, esbuild, or CDN module
+URLs. Vite is convenient here because it is small and fast.
+
+## What this lets examples do
+
+The runnable examples are normal browser JavaScript with normal imports. There
+is no Vite-specific editor code inside them; Vite is only the bridge that makes
+their package imports load in the browser.
+
+## Key idea
+
+npm gets package code onto disk. Vite gets that package code into the browser.
+Only after that bridge exists can ProseMirror's runtime loop begin.

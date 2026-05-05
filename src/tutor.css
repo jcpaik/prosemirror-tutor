@@ -48,6 +48,12 @@ body {
   background: #357abd;
 }
 
+#run-btn:disabled,
+#lesson-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 /* Split panels */
 #panels {
   display: flex;
@@ -136,3 +142,50 @@ body.dragging {
 #error-output.visible {
   display: block;
 }
+
+/* Lesson toggle button */
+#lesson-btn {
+  padding: 4px 16px;
+  font-size: 0.9rem;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#lesson-btn:hover {
+  background: #5a6268;
+}
+
+#lesson-btn.active {
+  background: #28a745;
+}
+
+#lesson-btn:disabled {
+  background: #6c757d;
+}
+
+/* Lesson panel */
+#lesson-panel {
+  flex: 1;
+  padding: 16px 24px;
+  overflow: auto;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+#lesson-panel.hidden {
+  display: none !important;
+}
+
+#lesson-panel h1 { font-size: 1.5rem; margin: 0.8em 0 0.4em; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+#lesson-panel h2 { font-size: 1.25rem; margin: 1em 0 0.4em; }
+#lesson-panel h3 { font-size: 1.1rem; margin: 0.8em 0 0.3em; }
+#lesson-panel code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+#lesson-panel pre { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 12px; overflow-x: auto; }
+#lesson-panel pre code { background: none; padding: 0; }
+#lesson-panel table { border-collapse: collapse; margin: 0.8em 0; }
+#lesson-panel th, #lesson-panel td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+#lesson-panel th { background: #f5f5f5; }
+#lesson-panel blockquote { border-left: 3px solid #ddd; margin: 0.8em 0; padding: 0.2em 1em; color: #555; }

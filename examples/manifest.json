@@ -1,18 +1,102 @@
 [
   {
-    "file": "01-basic-editor.js",
-    "title": "01 - Basic Editor"
-  },
-  {
-    "file": "02-from-scratch.js",
-    "title": "02 - From Scratch"
-  },
-  {
     "file": "03-transactions.js",
-    "title": "03 - Transactions"
+    "title": "03 - The Rendering Loop"
   },
   {
     "file": "04-document-model.js",
     "title": "04 - Document Model & Positions"
+  },
+  {
+    "file": "05-commands.js",
+    "title": "05 - Commands"
+  },
+  {
+    "file": "06-keymaps.js",
+    "title": "06 - Keymap Bindings"
+  },
+  {
+    "file": "07-command-chaining.js",
+    "title": "07 - Command Chaining"
+  },
+  {
+    "file": "08-marks.js",
+    "title": "08 - Marks In Depth"
+  },
+  {
+    "file": "09-content-expressions.js",
+    "title": "09 - Content Expressions"
+  },
+  {
+    "file": "10-todom-parsedom.js",
+    "title": "10 - toDOM & parseDOM (Serialization)"
+  },
+  {
+    "file": "11-dom-parser-serializer.js",
+    "title": "11 - DOMParser & DOMSerializer"
+  },
+  {
+    "file": "12-selections.js",
+    "title": "12 - Selections"
+  },
+  {
+    "file": "13-plugin-state.js",
+    "title": "13 - Plugins: State Fields"
+  },
+  {
+    "file": "14-plugin-props.js",
+    "title": "14 - Plugin Props & View Lifecycle"
+  },
+  {
+    "file": "15-filter-append-transaction.js",
+    "title": "15 - filterTransaction & appendTransaction"
+  },
+  {
+    "file": "16-decorations.js",
+    "title": "16 - Decorations"
+  },
+  {
+    "file": "17-history.js",
+    "title": "17 - History (Undo/Redo)"
+  },
+  {
+    "file": "18-input-rules.js",
+    "title": "18 - Input Rules"
+  },
+  {
+    "file": "19-lists.js",
+    "title": "19 - Lists (Schema & Commands)"
+  },
+  {
+    "file": "20-node-views.js",
+    "title": "20 - Node Views (Custom Rendering)"
+  },
+  {
+    "file": "21-transforms-steps.js",
+    "title": "21 - Transforms & Steps"
+  },
+  {
+    "file": "22-mapping.js",
+    "title": "22 - Mapping & Position Tracking"
+  },
+  {
+    "file": "23-example-setup.js",
+    "title": "23 - Example Setup (What It Bundles)"
+  },
+  {
+    "file": "24-menu.js",
+    "title": "24 - Menu Bar Basics"
+  },
+  {
+    "file": "25-gapcursor-dropcursor.js",
+    "title": "25 - Gap Cursor & Drop Cursor"
+  },
+  {
+    "file": "26-collaborative-editing.js",
+    "title": "26 - Collaborative Editing"
+  },
+  {
+    "file": "27-putting-it-together.js",
+    "title": "27 - Putting It All Together"
   }
 ]

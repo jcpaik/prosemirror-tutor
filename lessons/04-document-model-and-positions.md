@@ -1,172 +1,153 @@
-# 04 — The Document Model and Positions
+# 04 - Document Model and Positions
 
-## Documents are Node Trees
+## The loop need
 
-A ProseMirror document is a **tree of nodes**, just like the DOM — but with a
-critical difference in how inline content works.
+Transactions must say exactly where a change happens. "Insert text at the
+cursor" or "delete the selection" only works if the document has a stable
+addressing system.
 
-```
+ProseMirror's answer is:
+
+- The document is an immutable node tree.
+- Positions are integers inside that tree.
+- Resolved positions explain what an integer means in context.
+
+The related example is `examples/04-document-model.js`.
+
+## The document is a tree
+
+```txt
 doc
-├── paragraph
-│   ├── "Hello "        (text node)
-│   ├── "world"         (text node, with bold mark)
-│   └── "!"             (text node)
-└── paragraph
-    └── "Second para."  (text node)
+  heading
+    "Document Model Demo"
+  paragraph
+    "Click anywhere..."
+  blockquote
+    paragraph
+      "This is inside..."
 ```
 
-### Block vs. inline
+Block nodes, such as paragraphs and blockquotes, make the tree shape. Inline
+content, such as text, lives inside textblocks.
 
-- **Block nodes** (paragraphs, headings, blockquotes) form the tree structure.
-- **Inline content** (text, images) lives *inside* block nodes.
-- Block and inline can't be siblings — a paragraph can't contain another
-  paragraph.
+## Inline content stays flat
 
-### Flat inline model — the big difference from HTML
-
-In HTML, bold and italic create nested tags:
+HTML nests inline tags:
 
 ```html
-<p>This is <strong>strong <em>and emphasized</em></strong></p>
+<p>This is <strong>bold <em>and italic</em></strong></p>
 ```
 
-ProseMirror flattens this. Inline content is a **flat sequence of text nodes**
-with **marks** (bold, italic, etc.) attached as metadata:
+ProseMirror stores a flat sequence of text nodes with marks:
 
-```
+```txt
 paragraph
   "This is "
-  "strong "          [bold]
-  "and emphasized"   [bold, italic]
+  "bold "        [strong]
+  "and italic"   [strong, em]
 ```
 
-Why? Because it lets us address any position inside a paragraph with a simple
-**character offset** instead of navigating a tree. This makes positions simple
-integers, which makes everything else simpler.
+This keeps inline positions simple. A character can be addressed by an integer
+offset instead of a path through nested inline DOM.
 
-## Positions — the Numbering System
+## Positions are integer addresses
 
-Every spot in a document has an integer **position**. Understanding how
-positions work is essential for manipulating documents programmatically.
+Positions count through document content:
 
-### Counting rules
+- Entering or leaving a non-leaf node counts as 1.
+- Each text character counts as 1.
+- A leaf node, such as `horizontal_rule`, counts as 1.
 
-1. **Entering or leaving** a non-leaf node costs 1 token each (like `<p>` and
-   `</p>` in HTML).
-2. Each **character** in a text node costs 1 token.
-3. **Leaf nodes** (like images, horizontal rules) cost 1 token.
+For this shape:
 
-### Example
-
-```
-Document: <doc><p>One</p><blockquote><p>Two</p></blockquote></doc>
-
-Position map:
-0   1 2 3 4    5            6   7 8 9 10   11            12
- <p> O n e </p> <blockquote> <p> T w o </p> </blockquote>
+```txt
+doc(paragraph("One"), blockquote(paragraph("Two")))
 ```
 
-- Position 0 = before the first `<p>` (start of the document's content)
-- Position 1 = inside `<p>`, before "O"
-- Position 4 = inside `<p>`, after "e"
-- Position 5 = after `</p>`, before `<blockquote>`
-- Position 12 = end of document content
+The document content positions run from `0` to `doc.content.size`. The doc
+node's own open and close tokens are not counted.
 
-**Important**: the document node's own open/close tokens don't count. So the
-document's content runs from 0 to `doc.content.size`, not from 0 to
-`doc.nodeSize`.
+Useful landmarks:
 
-### `node.resolve(pos)` — understanding a position
+- `0`: before the first top-level node.
+- `1`: inside the first paragraph, before `O`.
+- `4`: inside the first paragraph, after `e`.
+- `5`: after the first paragraph, before the blockquote.
 
-Given a position, `doc.resolve(pos)` returns a `ResolvedPos` with rich context:
+## Resolved positions answer "where am I?"
+
+An integer is compact, but commands often need context. `doc.resolve(pos)`
+returns a `ResolvedPos`.
 
 ```js
-const $pos = doc.resolve(8);   // position 8 in the example above
-$pos.parent;      // → the <p> node inside the blockquote
-$pos.depth;       // → 2 (doc → blockquote → paragraph)
-$pos.parentOffset; // → 1 (one character into the paragraph: "w")
-$pos.index();     // → which child of the parent this position is in/before
+const $pos = doc.resolve(8);
+
+$pos.parent;       // the parent node at this position
+$pos.depth;        // depth in the tree
+$pos.parentOffset; // offset inside the parent
+$pos.index();      // child index at this depth
 ```
 
-The `$` prefix (`$pos`, `$from`, `$to`) is a ProseMirror convention for
-resolved positions.
+The `$` prefix, as in `$pos`, `$from`, and `$to`, is a common ProseMirror
+convention for resolved positions.
 
-## Navigating the Tree
+## Walking the document
 
-Nodes expose methods for walking the tree:
-
-```js
-doc.content            // Fragment containing child nodes
-doc.childCount         // Number of children
-doc.child(0)           // First child node
-doc.firstChild         // Same as child(0)
-node.textContent       // Concatenated text of all descendants
-node.nodeAt(pos)       // Node at the given position (relative to this node)
-```
-
-### node.forEach and node.descendants
+Use tree APIs when you need to inspect or display the current state:
 
 ```js
-// Iterate direct children
 doc.forEach((child, offset, index) => {
-  console.log(`Child ${index} at offset ${offset}: ${child.type.name}`);
+  console.log(index, offset, child.type.name);
 });
 
-// Walk all descendants (depth-first)
 doc.descendants((node, pos) => {
-  console.log(`${node.type.name} at position ${pos}`);
-  // Return false to skip this node's children
+  console.log(node.type.name, pos);
 });
 ```
 
-## Slices — Portions of a Document
+Useful node fields include `childCount`, `child(index)`, `firstChild`,
+`textContent`, and `nodeAt(pos)`.
 
-A `Slice` represents content between two positions. It handles the tricky case
-where the selection might start and end partway through nodes.
+## Slices represent selected content
+
+Selections can start and end inside nodes. A `Slice` records both the content
+and how open its edges are.
 
 ```js
-const slice = doc.slice(1, 4);    // "One" from the first paragraph
-slice.content;     // Fragment with the extracted nodes
-slice.openStart;   // How many levels are "open" at the start
-slice.openEnd;     // How many levels are "open" at the end
+const slice = doc.slice(from, to);
+
+slice.content;
+slice.openStart;
+slice.openEnd;
 ```
 
-When `openStart` or `openEnd` is > 0, it means the slice doesn't include the
-full wrapping node — just part of it. This matters for copy/paste: if you
-select text *within* a paragraph, the slice is "open" on both sides (the `<p>`
-is not closed and reopened). If you select entire paragraphs, openStart and
-openEnd are 0.
+If you copy text from inside a paragraph, the paragraph wrapper is open at the
+edges. If you copy whole paragraphs, the slice is closed. This is why paste can
+fit partial content into the destination.
 
-## Creating Nodes Programmatically
+## Creating nodes
 
-You can build document fragments from scratch using the schema:
+Schema methods create valid nodes:
 
 ```js
-const { schema } = require("prosemirror-schema-basic");
-
-// Build nodes from the schema
 const doc = schema.node("doc", null, [
   schema.node("paragraph", null, [
     schema.text("Hello "),
     schema.text("world", [schema.marks.strong.create()]),
   ]),
-  schema.node("paragraph", null, [
-    schema.text("Second paragraph."),
-  ]),
 ]);
 ```
 
-Every node is **immutable** — you never modify a node in place. To change the
-document, you create new nodes (or more commonly, use transactions).
+Nodes are immutable. To edit, use transactions rather than mutating the node
+tree directly.
 
-## Key Takeaways
+## Where this sits in the loop
 
-1. Documents are trees of nodes, but **inline content is flat** (not nested
-   like HTML). Marks are metadata on text nodes, not wrapper elements.
-2. Positions are **integers** counting tokens from the start of the document.
-   Entering/leaving a node = 1 token. Each character = 1 token.
-3. `doc.resolve(pos)` gives you the full context of a position: parent node,
-   depth, offset within the parent.
-4. **Slices** represent sub-documents with open/closed boundaries, enabling
-   correct copy/paste behavior.
-5. All nodes are **immutable** — you derive new nodes rather than mutating.
+The view renders `state.doc`. Commands and input handlers create transactions
+that target integer positions inside `state.doc`. Applying a transaction
+produces a new document tree, and the view renders that tree.
+
+## Key idea
+
+Positions are the address system that lets small transactions change a precise
+part of an immutable document tree.

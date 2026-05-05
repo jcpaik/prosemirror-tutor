@@ -1,144 +1,124 @@
-# 03 — Schema, State, View, and Transactions
+# 03 - The Rendering Loop
 
-## The Three Core Concepts
+## The loop we are trying to build
 
-ProseMirror separates concerns into three layers:
+An editor is a loop:
 
-### Schema — the rulebook
+```txt
+current state -> render DOM -> user input -> transaction -> next state -> render DOM
+```
 
-Defines what kinds of content are allowed: which node types exist (paragraphs,
-headings, etc.), which marks exist (bold, italic), and how they can nest. The
-document must obey the schema at all times — you can't even construct an
-invalid document.
+ProseMirror gives names to the parts of that loop:
+
+- `Schema`: what document shapes are allowed.
+- `EditorState`: the current document, selection, stored marks, and plugin
+  state.
+- `EditorView`: the DOM renderer and input bridge.
+- `Transaction`: the description of one attempted change.
+
+The example for this lesson is `examples/03-transactions.js`.
+
+## Minimal loop
 
 ```js
-const mySchema = new Schema({
+const state = EditorState.create({
+  schema,
+  plugins: [history(), keymap(baseKeymap)],
+});
+
+const view = new EditorView(document.querySelector("#editor"), {
+  state,
+  dispatchTransaction(tr) {
+    const nextState = this.state.apply(tr);
+    this.updateState(nextState);
+  },
+});
+```
+
+That `dispatchTransaction` function is the main loop in miniature. A change
+arrives as a transaction, the old immutable state produces a new state, and the
+view updates the DOM from that new state.
+
+## Why schema comes first
+
+Before a state can exist, ProseMirror must know what a valid document is.
+
+```js
+const schema = new Schema({
   nodes: {
-    doc: { content: "paragraph+" },       // root: one or more paragraphs
+    doc: { content: "paragraph+" },
     paragraph: {
-      content: "text*",                   // contains zero or more text nodes
-      toDOM() { return ["p", 0]; },       // how to render to DOM
-      parseDOM: [{ tag: "p" }],           // how to parse from DOM
+      content: "text*",
+      toDOM() { return ["p", 0]; },
+      parseDOM: [{ tag: "p" }],
     },
     text: { inline: true },
   },
 });
 ```
 
-If a node type isn't in the schema, it doesn't exist. No bold mark defined?
-Bold is impossible. This is by design — you control exactly what the editor
-can do.
+This is not decoration around the loop. It is the loop's validity rule. If the
+schema does not define bold, bold cannot appear. If `doc` requires paragraphs,
+transactions must preserve that shape.
 
-### State — a snapshot
+## State is the source of truth
 
-An immutable snapshot of the document content, cursor/selection position, and
-plugin state. State is created from a schema (to know the rules) and plugins
-(to track their state, e.g. undo history).
+`EditorState` is an immutable snapshot. It contains the document and selection,
+plus plugin state such as undo history.
 
-```js
-const state = EditorState.create({
-  schema: mySchema,
-  plugins: [history(), keymap(baseKeymap)],
-});
+The DOM is not the source of truth. The view can be destroyed and recreated from
+the same state, and the editor will render the same content.
+
+## View connects state to the browser
+
+`EditorView` renders the state into a `contenteditable` DOM and listens to
+browser input. Its job is to keep the rendered DOM and state connected without
+letting the DOM become the authority.
+
+## Two ways input enters the loop
+
+Some input is handled before the browser changes the DOM:
+
+```txt
+Mod-b -> keymap plugin -> command -> transaction -> dispatchTransaction
 ```
 
-State knows nothing about the DOM. You could serialize it, send it over a
-network, and reconstruct it elsewhere.
+Other input starts as a native DOM change:
 
-### View — the renderer
-
-Renders state to the DOM and captures user input. The View is deliberately
-*not* the source of truth — it's just a display layer. You could destroy a
-view and create a new one from the same state, and everything would look
-identical.
-
-```js
-new EditorView(document.querySelector("#editor"), { state });
+```txt
+type "a" -> browser edits DOM -> view observes change -> transaction
 ```
 
-## Why State needs Schema and Plugins (not the View)
+Both paths meet at `dispatchTransaction`. That is why it is the best place to
+log, inspect, reject, modify, or sync changes.
 
-This was a key insight: the View doesn't own the document. State does. So
-State needs the schema (to enforce rules) and plugins (to track their state
-like undo history). The View just renders whatever State tells it to.
+## Steps inside transactions
 
-This inversion — compared to editors where the DOM is the source of truth —
-is what makes ProseMirror's architecture clean and enables things like
-collaborative editing.
+A transaction contains steps: atomic document operations such as replacing a
+range, inserting text, or splitting a paragraph. Typing a character usually
+creates one replace step. Pressing Enter creates a step that splits a block.
 
-## Transactions — how State changes
-
-State is immutable. You never modify it directly. Instead, you create a
-**Transaction** — a recipe describing an edit — and apply it to get a new
-State.
-
-```
-old State  →  Transaction  →  new State
-```
-
-### The flow
-
-```
-User types "a"
-  → View creates a Transaction with a ReplaceStep (insert "a" at cursor)
-  → dispatchTransaction(tr) is called
-  → new state = old state.apply(tr)
-  → view.updateState(newState)
-  → View re-renders
-```
-
-### dispatchTransaction — the single chokepoint
-
-Every change flows through one function on the View:
-
-```js
-new EditorView(element, {
-  state,
-  dispatchTransaction(tr) {
-    const newState = this.state.apply(tr);
-    this.updateState(newState);
-  },
-});
-```
-
-Because everything goes through this function, you can:
-- **Log** every change (inspect the transaction's steps)
-- **Reject** changes (don't call `updateState`)
-- **Modify** transactions before applying
-- **Sync** changes to a server for collaboration
-
-### Steps — atomic operations inside a Transaction
-
-A transaction contains **steps**. Each step is an atomic operation like
-"replace characters at positions 3–3 with 'a'" (inserting) or "replace
-positions 5–8 with nothing" (deleting). Pressing Enter produces a step that
-splits a paragraph node into two.
-
-### Programmatic transactions
-
-You can also dispatch transactions from code:
+You can also create transactions yourself:
 
 ```js
 const tr = view.state.tr.insertText("Hello! ", 1);
 view.dispatch(tr);
 ```
 
-`view.state.tr` creates a new transaction from the current state. You chain
-methods on it (`insertText`, `delete`, `setSelection`, etc.) then dispatch it.
+`view.state.tr` starts from the current state. Dispatching sends the transaction
+through the same loop as user input.
 
-## Examples
+## Where this sits in the loop
 
-| File | What it demonstrates |
-|---|---|
-| `01-basic-editor.js` | `exampleSetup` hides everything — quick start but opaque |
-| `02-from-scratch.js` | Build schema, plugins, state, view manually — full control |
-| `03-transactions.js` | Override `dispatchTransaction` to log every change |
+This lesson is the center of the map. Later lessons mostly zoom into one edge
+of this loop:
 
-## Key Takeaways
+- Positions explain where a transaction changes the document.
+- Commands turn user intent into transactions.
+- Keymaps choose commands from keyboard input.
+- Marks and content expressions define what valid document data can be.
 
-1. **Schema** = what's allowed. **State** = what's there now. **View** = what you see.
-2. State is immutable. Edits produce new states via transactions.
-3. The View is a dumb renderer — State is the source of truth.
-4. `dispatchTransaction` is the single chokepoint for all changes.
-5. `exampleSetup` is a convenience wrapper — real control comes from building
-   the schema, plugins, and keymaps yourself.
+## Key idea
+
+ProseMirror editing is not "mutate the DOM." It is "describe a valid change,
+apply it to immutable state, and render the next state."
